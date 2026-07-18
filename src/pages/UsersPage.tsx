@@ -1,42 +1,47 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getUsers, createUser, deleteUser } from "../api";
 import { User } from "../types";
 
 export default function UsersPage() {
-  // TODO: add role check before rendering
-  // if (user.role !== 'admin') return null;
-
-  const [users, setUsers] = useState<User[]>([
-    { id: "1", email: "admin@penguwave.io", role: "admin", status: "active", password: "admin123" },
-    { id: "2", email: "analyst@penguwave.io", role: "analyst", status: "active", password: "pass456" },
-    { id: "3", email: "viewer@penguwave.io", role: "viewer", status: "disabled", password: "view789" },
-  ]);
-
+  const [users, setUsers] = useState<User[]>([]);
+  const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newRole, setNewRole] = useState("analyst");
 
-  const handleAddUser = (e: React.FormEvent) => {
+  useEffect(() => {
+    getUsers()
+      .then((data) => {
+        if (Array.isArray(data)) setUsers(data);
+        else setError(data.error || "Access denied.");
+      })
+      .catch(() => setError("Could not load users."));
+  }, []);
+
+  const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEmail || !newPassword) return;
 
-    const newUser: User = {
-      id: String(Date.now()),
-      email: newEmail,
-      role: newRole,
-      status: "active",
-      password: newPassword,
-    };
-
-    setUsers([...users, newUser]);
-    setNewEmail("");
-    setNewPassword("");
-    setNewRole("analyst");
-    setShowForm(false);
+    const data = await createUser({ email: newEmail, password: newPassword, role: newRole });
+    if (data.id) {
+      setUsers([...users, data]);
+      setNewEmail("");
+      setNewPassword("");
+      setNewRole("analyst");
+      setShowForm(false);
+    } else {
+      setError(data.error || "Failed to create user.");
+    }
   };
 
-  const handleDelete = (id: string) => {
-    setUsers(users.filter((u) => u.id !== id));
+  const handleDelete = async (id: string) => {
+    const data = await deleteUser(id);
+    if (data.message) {
+      setUsers(users.filter((u) => u.id !== id));
+    } else {
+      setError(data.error || "Failed to delete user.");
+    }
   };
 
   return (
@@ -47,6 +52,8 @@ export default function UsersPage() {
           {showForm ? "Cancel" : "Add User"}
         </button>
       </div>
+
+      {error && <p style={{ color: "red", marginBottom: 12 }}>{error}</p>}
 
       {showForm && (
         <div style={{ border: "1px solid #ddd", padding: 16, marginBottom: 20, background: "#fafafa" }}>
@@ -65,7 +72,7 @@ export default function UsersPage() {
             <div style={{ marginBottom: 8 }}>
               <label>Password</label>
               <input
-                type="text"
+                type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="password"
@@ -80,9 +87,7 @@ export default function UsersPage() {
                 <option value="viewer">Viewer</option>
               </select>
             </div>
-            <button type="submit" className="btn-primary">
-              Create User
-            </button>
+            <button type="submit" className="btn-primary">Create User</button>
           </form>
         </div>
       )}
@@ -93,7 +98,6 @@ export default function UsersPage() {
             <th>Email</th>
             <th>Role</th>
             <th>Status</th>
-            <th>Password</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -107,14 +111,10 @@ export default function UsersPage() {
                   {user.status}
                 </span>
               </td>
-              <td style={{ fontFamily: "monospace", fontSize: 13 }}>{user.password}</td>
               <td>
                 <a
                   href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleDelete(user.id);
-                  }}
+                  onClick={(e) => { e.preventDefault(); handleDelete(user.id); }}
                   style={{ color: "red" }}
                 >
                   Delete
@@ -125,7 +125,7 @@ export default function UsersPage() {
         </tbody>
       </table>
 
-      {users.length === 0 && <p style={{ color: "#999" }}>No users.</p>}
+      {users.length === 0 && !error && <p style={{ color: "#999" }}>No users.</p>}
     </div>
   );
 }

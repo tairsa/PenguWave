@@ -2,9 +2,11 @@ import { Link, useLocation } from "react-router-dom";
 
 interface NavbarProps {
   onLoginClick: () => void;
+  onLogout: () => void;
+  isLoggedIn: boolean;
 }
 
-export default function Navbar({ onLoginClick }: NavbarProps) {
+export default function Navbar({ onLoginClick, onLogout, isLoggedIn }: NavbarProps) {
   const location = useLocation();
 
   return (
@@ -15,21 +17,17 @@ export default function Navbar({ onLoginClick }: NavbarProps) {
         </Link>
       </div>
       <div className="navbar-links">
-        <Link
-          to="/events"
-          className={location.pathname.startsWith("/events") ? "active" : ""}
-        >
+        <Link to="/events" className={location.pathname.startsWith("/events") ? "active" : ""}>
           Events
         </Link>
-        <Link
-          to="/users"
-          className={location.pathname === "/users" ? "active" : ""}
-        >
+        <Link to="/users" className={location.pathname === "/users" ? "active" : ""}>
           Users
         </Link>
-        <button onClick={onLoginClick} className="navbar-login-btn">
-          Login
-        </button>
+        {isLoggedIn ? (
+          <button onClick={onLogout} className="navbar-login-btn">Logout</button>
+        ) : (
+          <button onClick={onLoginClick} className="navbar-login-btn">Login</button>
+        )}
       </div>
     </nav>
   );

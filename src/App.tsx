@@ -9,33 +9,35 @@ import NotFound from "./pages/NotFound";
 
 function App() {
   const [showLogin, setShowLogin] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("token"));
 
-  // Show login modal on first visit
   useEffect(() => {
-    const dismissed = sessionStorage.getItem("login-dismissed");
-    if (!dismissed) {
-      setShowLogin(true);
-    }
-  }, []);
+    if (!isLoggedIn) setShowLogin(true);
+  }, [isLoggedIn]);
 
-  const handleCloseLogin = () => {
-    sessionStorage.setItem("login-dismissed", "true");
+  const handleLoginSuccess = () => {
+    setIsLoggedIn(true);
     setShowLogin(false);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    setIsLoggedIn(false);
   };
 
   return (
     <>
-      <Navbar onLoginClick={() => setShowLogin(true)} />
+      <Navbar onLoginClick={() => setShowLogin(true)} onLogout={handleLogout} isLoggedIn={isLoggedIn} />
       <div className="container">
         <WelcomeBanner />
         <Routes>
           <Route path="/" element={<Navigate to="/events" replace />} />
-          <Route path="/events" element={<EventsPage />} />
+          <Route path="/events" element={<EventsPage isLoggedIn={isLoggedIn} />} />
           <Route path="/users" element={<UsersPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </div>
-      {showLogin && <LoginModal onClose={handleCloseLogin} />}
+      {showLogin && <LoginModal onClose={() => setShowLogin(false)} onSuccess={handleLoginSuccess} />}
     </>
   );
 }

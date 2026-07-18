@@ -1,13 +1,23 @@
-import { useState } from "react";
-import mockEvents from "../../data/mock_events.json";
+import { useState, useEffect } from "react";
+import { getEvents } from "../api";
 import { SecurityEvent } from "../types";
 
-export default function EventsPage() {
+export default function EventsPage({ isLoggedIn }: { isLoggedIn: boolean }) {
+  const [events, setEvents] = useState<SecurityEvent[]>([]);
   const [search, setSearch] = useState("");
   const [severityFilter, setSeverityFilter] = useState("ALL");
   const [selectedEvent, setSelectedEvent] = useState<SecurityEvent | null>(null);
+  const [error, setError] = useState("");
 
-  const events = mockEvents as SecurityEvent[];
+  useEffect(() => {
+    setError("");
+    getEvents()
+      .then((data) => {
+        if (Array.isArray(data)) setEvents(data);
+        else setError("Please log in to view events.");
+      })
+      .catch(() => setError("Could not load events."));
+  }, [isLoggedIn]);
 
   const filtered = events.filter((e) => {
     const matchesSearch =
@@ -27,6 +37,8 @@ export default function EventsPage() {
   return (
     <div className="page-container">
       <h1>Security Events</h1>
+
+      {error && <p style={{ color: "red" }}>{error}</p>}
 
       <div style={{ marginBottom: 16, display: "flex", gap: 12, alignItems: "center" }}>
         <input
@@ -48,15 +60,9 @@ export default function EventsPage() {
         </select>
       </div>
 
+      {/* Safe text rendering — no dangerouslySetInnerHTML */}
       {search && (
-        <p>
-          <span
-            dangerouslySetInnerHTML={{
-              __html: "Showing results for: <strong>" + search + "</strong>",
-            }}
-          />
-          {" "}({filtered.length} events)
-        </p>
+        <p>Showing results for: <strong>{search}</strong> ({filtered.length} events)</p>
       )}
 
       <table>
@@ -80,21 +86,15 @@ export default function EventsPage() {
                 {event.severity}
               </td>
               <td>{event.title}</td>
-              <td style={{ fontFamily: "monospace", fontSize: 13 }}>
-                {event.assetHostname}
-              </td>
-              <td style={{ fontFamily: "monospace", fontSize: 13 }}>
-                {event.sourceIp}
-              </td>
-              <td style={{ fontSize: 13 }}>
-                {new Date(event.timestamp).toLocaleString()}
-              </td>
+              <td style={{ fontFamily: "monospace", fontSize: 13 }}>{event.assetHostname}</td>
+              <td style={{ fontFamily: "monospace", fontSize: 13 }}>{event.sourceIp}</td>
+              <td style={{ fontSize: 13 }}>{new Date(event.timestamp).toLocaleString()}</td>
             </tr>
           ))}
         </tbody>
       </table>
 
-      {filtered.length === 0 && <p style={{ color: "#999" }}>No events found.</p>}
+      {filtered.length === 0 && !error && <p style={{ color: "#999" }}>No events found.</p>}
 
       <div style={{ marginTop: 12 }}>
         <button
@@ -113,42 +113,22 @@ export default function EventsPage() {
         </button>
       </div>
 
-      {/* Inline event detail */}
       {selectedEvent && (
         <div className="event-detail">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <h2>{selectedEvent.title}</h2>
-            <button onClick={() => setSelectedEvent(null)} style={{ cursor: "pointer" }}>
-              Close
-            </button>
+            <button onClick={() => setSelectedEvent(null)} style={{ cursor: "pointer" }}>Close</button>
           </div>
-          <p>
-            <strong>Severity:</strong>{" "}
-            <span style={{ color: severityColor(selectedEvent.severity) }}>
-              {selectedEvent.severity}
-            </span>
+          <p><strong>Severity:</strong>{" "}
+            <span style={{ color: severityColor(selectedEvent.severity) }}>{selectedEvent.severity}</span>
           </p>
-          <p>
-            <strong>Description:</strong>
-          </p>
-          {/* render rich text descriptions */}
-          <div
-            ref={(el) => {
-              if (el) el.innerHTML = selectedEvent.description;
-            }}
-          />
-          <p>
-            <strong>Asset:</strong> {selectedEvent.assetHostname} ({selectedEvent.assetIp})
-          </p>
-          <p>
-            <strong>Source IP:</strong> {selectedEvent.sourceIp}
-          </p>
-          <p>
-            <strong>Tags:</strong> {selectedEvent.tags.join(", ")}
-          </p>
-          <p>
-            <strong>Timestamp:</strong> {new Date(selectedEvent.timestamp).toLocaleString()}
-          </p>
+          {/* Safe plain-text rendering — fixes XSS vulnerability from original code */}
+          <p><strong>Description:</strong></p>
+          <p>{selectedEvent.description}</p>
+          <p><strong>Asset:</strong> {selectedEvent.assetHostname} ({selectedEvent.assetIp})</p>
+          <p><strong>Source IP:</strong> {selectedEvent.sourceIp}</p>
+          <p><strong>Tags:</strong> {selectedEvent.tags.join(", ")}</p>
+          <p><strong>Timestamp:</strong> {new Date(selectedEvent.timestamp).toLocaleString()}</p>
           <h3>Raw Event Data</h3>
           <pre>{JSON.stringify(selectedEvent, null, 2)}</pre>
         </div>
